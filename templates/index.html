@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Sentiment Analyzer | Positive or Negative</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Open Sans', 'sans-serif'],
+                        serif: ['Merriweather', 'serif'],
+                    },
+                    colors: {
+                        positive: {
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                        },
+                        negative: {
+                            100: '#fee2e2',
+                            500: '#ef4444',
+                            600: '#dc2626',
+                        },
+                        primary: {
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                        },
+                        warning: {
+                            100: '#fef3c7',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                        }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'bounce-slow': 'bounce 2s infinite'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-image: url('https://images.unsplash.com/photo-1507842217343-583bb7270b66?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+        
+        .backdrop-blur {
+            backdrop-filter: blur(8px);
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .sentiment-card {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            transition: all 0.3s ease;
+        }
+        
+        .sentiment-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        
+        .gradient-btn {
+            background-image: linear-gradient(to right, #6366f1, #8b5cf6);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+        }
+        
+        .gradient-btn:hover {
+            background-image: linear-gradient(to right, #4f46e5, #7c3aed);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.4);
+        }
+        
+        .sentiment-gauge {
+            height: 8px;
+            background: linear-gradient(to right, #ef4444, #6366f1, #22c55e);
+            border-radius: 4px;
+            position: relative;
+        }
+        
+        .sentiment-pointer {
+            position: absolute;
+            top: -6px;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 8px solid #4f46e5;
+            transform: translateX(-8px);
+            transition: left 0.8s ease-out;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .highlight-positive {
+            background-color: rgba(34, 197, 94, 0.15);
+            border-left: 3px solid #22c55e;
+        }
+        
+        .highlight-negative {
+            background-color: rgba(239, 68, 68, 0.15);
+            border-left: 3px solid #ef4444;
+        }
+        
+        .pulse-ring {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+        }
+        
+        .file-upload {
+            border: 2px dashed #cbd5e0;
+            transition: all 0.3s ease;
+        }
+        
+        .file-upload:hover {
+            border-color: #6366f1;
+            background-color: rgba(99, 102, 241, 0.05);
+        }
+        
+        .file-upload.active {
+            border-color: #6366f1;
+            background-color: rgba(99, 102, 241, 0.1);
+        }
+        
+        .batch-result-item {
+            transition: all 0.3s ease;
+        }
+        
+        .batch-result-item:hover {
+            transform: translateX(3px);
+        }
+        
+        .progress-bar {
+            transition: width 0.5s ease;
+        }
+        
+        .highlight-warning {
+            background-color: rgba(245, 158, 11, 0.15);
+            border-left: 3px solid #f59e0b;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div class="backdrop-blur min-h-screen">
+        <div class="container mx-auto px-4 py-12">
+            <!-- Header -->
+            <header class="text-center mb-16">
+                <div class="flex items-center justify-center mb-6">
+                    <div class="relative">
+                        <div class="absolute inset-0 bg-primary-500 rounded-full opacity-20 animate-pulse-slow"></div>
+                        <div class="relative bg-white p-4 rounded-full shadow-lg">
+                            <i class="fas fa-book-open text-4xl text-primary-600"></i>
+                        </div>
+                    </div>
+                    <h1 class="text-4xl font-bold text-gray-900 ml-4 font-serif">
+                        Book <span class="text-primary-600">Sentiment</span> Analyzer
+                    </h1>
+                </div>
+                <p class="text-lg text-gray-600 max-w-2xl mx-auto">
+                    Discover whether your book reviews are <span class="font-semibold text-positive-600">Positive</span> 
+                    or <span class="font-semibold text-negative-600">Negative</span> with our advanced analysis.
+                </p>
+            </header>
+
+            <!-- Main Content -->
+            <div class="flex flex-col lg:flex-row gap-8">
+                <!-- Main Form Section -->
+                <div class="w-full lg:w-2/3">
+                    <div class="sentiment-card bg-white rounded-xl p-8">
+                        <div class="mb-8">
+                            <h2 class="text-2xl font-bold text-gray-800 mb-2 font-serif">
+                                <i class="fas fa-pen-nib text-primary-500 mr-3"></i>
+                                Analyze Your Book Review
+                            </h2>
+                            <p class="text-gray-500">
+                                Paste your book review below to discover its emotional sentiment (Positive or Negative).
+                            </p>
+                        </div>
+
+                        <!-- Tab Navigation -->
+                        <div class="flex border-b border-gray-200 mb-6">
+                            <button id="singleTab" class="px-4 py-2 font-medium text-primary-600 border-b-2 border-primary-600">
+                                <i class="fas fa-align-left mr-2"></i>Single Review
+                            </button>
+                            <button id="batchTab" class="px-4 py-2 font-medium text-gray-500 hover:text-primary-600">
+                                <i class="fas fa-file-csv mr-2"></i>Batch Processing
+                            </button>
+                        </div>
+
+                        <!-- Single Review Form -->
+                        <form id="reviewForm" method="POST">
+                            <div class="mb-6">
+                                <label for="review" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Your Book Review
+                                </label>
+                                <textarea
+                                    id="review"
+                                    name="review"
+                                    rows="8"
+                                    class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary-300 focus:border-primary-500 transition duration-200"
+                                    placeholder="This book was absolutely amazing with its character development and plot twists..."
+                                ></textarea>
+                            </div>
+
+                            <div class="flex items-center justify-between mb-6">
+                                <div class="flex items-center">
+                                    <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+                                    <span class="text-sm text-gray-500">Tip: Reviews with 20+ words work best</span>
+                                </div>
+                                <div id="wordCount" class="text-sm text-gray-500">0 words</div>
+                            </div>
+
+                            <button
+                                id="analyzeBtn"
+                                type="submit"
+                                class="gradient-btn w-full py-4 px-6 rounded-lg text-white font-semibold text-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 flex items-center justify-center"
+                            >
+                                <i class="fas fa-magic mr-3"></i>Analyze Sentiment
+                            </button>
+                        </form>
+
+                        <!-- Batch Processing Form -->
+                        <div id="batchForm" class="hidden">
+                            <div class="mb-6">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Upload CSV File
+                                </label>
+                                <div id="dropZone" class="file-upload rounded-lg p-8 text-center cursor-pointer">
+                                    <input type="file" id="csvFile" accept=".csv" class="hidden">
+                                    <div class="flex flex-col items-center justify-center">
+                                        <i class="fas fa-file-csv text-4xl text-primary-500 mb-3"></i>
+                                        <p class="text-gray-600 font-medium mb-1">Drag & drop your CSV file here</p>
+                                        <p class="text-gray-500 text-sm">or click to browse files</p>
+                                        <p class="text-gray-400 text-xs mt-3">CSV should contain a "review" column</p>
+                                    </div>
+                                </div>
+                                <div id="fileName" class="text-sm text-gray-500 mt-2 hidden">
+                                    <i class="fas fa-file-alt mr-2"></i><span></span>
+                                </div>
+                            </div>
+
+                            <div class="mb-6">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">
+                                    Processing Options
+                                </label>
+                                <div class="flex items-center">
+                                    <input type="checkbox" id="skipArabic" class="rounded text-primary-600 focus:ring-primary-500" checked>
+                                    <label for="skipArabic" class="ml-2 text-sm text-gray-600">
+                                        Skip reviews containing Arabic text
+                                    </label>
+                                </div>
+                            </div>
+
+                            <button
+                                id="processBtn"
+                                type="button"
+                                class="gradient-btn w-full py-4 px-6 rounded-lg text-white font-semibold text-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 flex items-center justify-center"
+                                disabled
+                            >
+                                <i class="fas fa-cogs mr-3"></i>Process Batch
+                            </button>
+                        </div>
+
+                        <!-- Results Section -->
+                        <div id="resultSection" class="mt-8 hidden fade-in">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4 font-serif">
+                                <i class="fas fa-chart-pie text-primary-500 mr-2"></i>
+                                Sentiment Analysis Results
+                            </h3>
+
+                            <div class="bg-gray-50 rounded-lg p-6 mb-6">
+                                <div class="flex flex-col md:flex-row md:items-center justify-between mb-6">
+                                    <div class="flex items-center mb-4 md:mb-0">
+                                        <div id="sentimentEmoji" class="text-5xl mr-4"></div>
+                                        <div>
+                                            <h4 class="font-bold text-gray-800">Overall Sentiment</h4>
+                                            <p id="sentimentText" class="text-lg font-medium"></p>
+                                        </div>
+                                    </div>
+                                    <div id="confidenceBadge" class="px-4 py-2 rounded-full text-sm font-medium"></div>
+                                </div>
+
+                                <div class="mb-2 flex justify-between text-sm text-gray-600">
+                                    <span>Negative</span>
+                                    <span>Positive</span>
+                                </div>
+                                <div class="sentiment-gauge mb-6">
+                                    <div id="sentimentPointer" class="sentiment-pointer"></div>
+                                </div>
+
+                                <h4 class="font-bold text-gray-700 mb-3">
+                                    <i class="fas fa-quote-left text-primary-500 mr-2"></i>
+                                    Key Phrases
+                                </h4>
+
+                                <div class="grid grid-cols-1 gap-3">
+                                    <div id="positivePhrases" class="hidden">
+                                        <div class="flex items-center text-positive-600 mb-2">
+                                            <i class="fas fa-smile-beam mr-2"></i>
+                                            <span class="font-medium">Positive Highlights</span>
+                                        </div>
+                                        <div class="space-y-2"></div>
+                                    </div>
+
+                                    <div id="negativePhrases" class="hidden">
+                                        <div class="flex items-center text-negative-600 mb-2">
+                                            <i class="fas fa-frown mr-2"></i>
+                                            <span class="font-medium">Negative Highlights</span>
+                                        </div>
+                                        <div class="space-y-2"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-end">
+                                <button id="saveBtn" class="text-primary-600 font-medium flex items-center">
+                                    <i class="fas fa-bookmark mr-2"></i>Save Analysis
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Batch Results Section -->
+                        <div id="batchResultSection" class="mt-8 hidden fade-in">
+                            <h3 class="text-xl font-bold text-gray-800 mb-4 font-serif">
+                                <i class="fas fa-file-csv text-primary-500 mr-2"></i>
+                                Batch Analysis Results
+                            </h3>
+
+                            <div class="bg-gray-50 rounded-lg p-6 mb-6">
+                                <div class="flex flex-col md:flex-row md:items-center justify-between mb-6">
+                                    <div class="flex items-center mb-4 md:mb-0">
+                                        <div class="text-5xl mr-4">
+                                            <i class="fas fa-chart-bar text-primary-500"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="font-bold text-gray-800">Batch Summary</h4>
+                                            <p id="batchSummaryText" class="text-lg font-medium"></p>
+                                        </div>
+                                    </div>
+                                    <div id="batchStats" class="flex space-x-4">
+                                        <div class="text-center">
+                                            <div class="text-2xl font-bold text-positive-600" id="positiveCount">0</div>
+                                            <div class="text-xs text-gray-500">Positive</div>
+                                        </div>
+                                        <div class="text-center">
+                                            <div class="text-2xl font-bold text-negative-600" id="negativeCount">0</div>
+                                            <div class="text-xs text-gray-500">Negative</div>
+                                        </div>
+                                        <div class="text-center">
+                                            <div class="text-2xl font-bold text-warning-600" id="skippedCount">0</div>
+                                            <div class="text-xs text-gray-500">Skipped</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-6">
+                                    <div class="flex justify-between text-sm text-gray-600 mb-1">
+                                        <span>Progress</span>
+                                        <span id="progressText">0/0</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                        <div id="progressBar" class="progress-bar bg-primary-600 h-2.5 rounded-full" style="width: 0%"></div>
+                                    </div>
+                                </div>
+
+                                <h4 class="font-bold text-gray-700 mb-3">
+                                    <i class="fas fa-list-ul text-primary-500 mr-2"></i>
+                                    Review Results
+                                </h4>
+
+                                <div class="max-h-96 overflow-y-auto pr-2">
+                                    <div id="batchResultsList" class="space-y-3"></div>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-between">
+                                <button id="exportBtn" class="text-primary-600 font-medium flex items-center">
+                                    <i class="fas fa-file-export mr-2"></i>Export Results
+                                </button>
+                                <button id="batchSaveBtn" class="text-primary-600 font-medium flex items-center">
+                                    <i class="fas fa-save mr-2"></i>Save All to History
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History Sidebar -->
+                <div class="w-full lg:w-1/3">
+                    <div class="sentiment-card bg-white rounded-xl p-6 h-full">
+                        <div class="flex items-center mb-6">
+                            <div class="bg-primary-100 p-3 rounded-full mr-3">
+                                <i class="fas fa-history text-primary-600"></i>
+                            </div>
+                            <h3 class="text-xl font-bold text-gray-800 font-serif">Analysis History</h3>
+                        </div>
+
+                        <div id="historyList" class="space-y-4">
+                            <div id="emptyHistory" class="text-center py-8">
+                                <i class="fas fa-book-reader text-4xl text-gray-300 mb-3"></i>
+                                <p class="text-gray-500">Your analysis history will appear here</p>
+                                <p class="text-sm text-gray-400 mt-2">Analyze a review to see past results</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 pt-4 border-t border-gray-200">
+                            <div class="flex items-center justify-between text-sm text-gray-500">
+                                <span>Saved: <span id="storageCount">0</span>/10</span>
+                                <button id="clearHistory" class="text-negative-500 hover:text-negative-700">
+                                    <i class="fas fa-trash-alt mr-1"></i>Clear All
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Examples Section -->
+            <div class="mt-16">
+                <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center font-serif">
+                    <i class="fas fa-lightbulb text-primary-500 mr-2"></i>
+                    Example Reviews to Try
+                </h3>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="sentiment-card bg-white rounded-xl p-6">
+                        <div class="flex items-center mb-4">
+                            <div class="bg-positive-100 p-2 rounded-full mr-3">
+                                <i class="fas fa-smile text-positive-600"></i>
+                            </div>
+                            <h4 class="font-bold text-gray-800">Positive Example</h4>
+                        </div>
+                        <p class="text-gray-600 mb-4 italic">
+                            "This novel was absolutely breathtaking! The character development was superb, and the plot twists kept me on the edge of my seat. The author's writing style is engaging and vivid, making it impossible to put the book down. I highly recommend this to anyone who enjoys a compelling story with deep emotional resonance."
+                        </p>
+                        <button 
+                            onclick="useExample('positive')" 
+                            class="text-sm text-positive-600 hover:text-positive-800 font-medium flex items-center"
+                        >
+                            <i class="fas fa-play mr-2"></i>Try this example
+                        </button>
+                    </div>
+
+                    <div class="sentiment-card bg-white rounded-xl p-6">
+                        <div class="flex items-center mb-4">
+                            <div class="bg-negative-100 p-2 rounded-full mr-3">
+                                <i class="fas fa-frown text-negative-600"></i>
+                            </div>
+                            <h4 class="font-bold text-gray-800">Negative Example</h4>
+                        </div>
+                        <p class="text-gray-600 mb-4 italic">
+                            "I was extremely disappointed with this book. The characters were flat and uninteresting, and the plot was predictable from the very beginning. The writing felt lazy and uninspired. I struggled to finish it and wouldn't recommend it to anyone. Save your money and time for something better written and more engaging."
+                        </p>
+                        <button 
+                            onclick="useExample('negative')" 
+                            class="text-sm text-negative-600 hover:text-negative-800 font-medium flex items-center"
+                        >
+                            <i class="fas fa-play mr-2"></i>Try this example
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="mt-16 pt-8 border-t border-gray-200 text-center">
+                <div class="flex justify-center space-x-6 mb-4">
+                    <a href="#" class="text-gray-500 hover:text-primary-600">
+                        <i class="fab fa-twitter"></i>
+                    </a>
+                    <a href="#" class="text-gray-500 hover:text-primary-600">
+                        <i class="fab fa-facebook"></i>
+                    </a>
+                    <a href="#" class="text-gray-500 hover:text-primary-600">
+                        <i class="fab fa-instagram"></i>
+                    </a>
+                    <a href="#" class="text-gray-500 hover:text-primary-600">
+                        <i class="fab fa-goodreads"></i>
+                    </a>
+                </div>
+                <p class="text-sm text-gray-500">
+                    © 2023 Book Sentiment Analyzer. All rights reserved.
+                </p>
+            </footer>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM Elements
+            const reviewForm = document.getElementById('reviewForm');
+            const batchForm = document.getElementById('batchForm');
+            const singleTab = document.getElementById('singleTab');
+            const batchTab = document.getElementById('batchTab');
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            const processBtn = document.getElementById('processBtn');
+            const reviewInput = document.getElementById('review');
+            const resultSection = document.getElementById('resultSection');
+            const batchResultSection = document.getElementById('batchResultSection');
+            const sentimentEmoji = document.getElementById('sentimentEmoji');
+            const sentimentText = document.getElementById('sentimentText');
+            const sentimentPointer = document.getElementById('sentimentPointer');
+            const confidenceBadge = document.getElementById('confidenceBadge');
+            const positivePhrases = document.getElementById('positivePhrases');
+            const negativePhrases = document.getElementById('negativePhrases');
+            const historyList = document.getElementById('historyList');
+            const emptyHistory = document.getElementById('emptyHistory');
+            const wordCount = document.getElementById('wordCount');
+            const saveBtn = document.getElementById('saveBtn');
+            const batchSaveBtn = document.getElementById('batchSaveBtn');
+            const clearHistory = document.getElementById('clearHistory');
+            const storageCount = document.getElementById('storageCount');
+            const dropZone = document.getElementById('dropZone');
+            const csvFileInput = document.getElementById('csvFile');
+            const fileName = document.getElementById('fileName');
+            // const skipArabic = document.getElementById('skipArabic'); // Checkbox is now effectively overridden for Arabic blocking
+            const positiveCount = document.getElementById('positiveCount');
+            const negativeCount = document.getElementById('negativeCount');
+            const skippedCount = document.getElementById('skippedCount');
+            const batchSummaryText = document.getElementById('batchSummaryText');
+            const progressText = document.getElementById('progressText');
+            const progressBar = document.getElementById('progressBar');
+            const batchResultsList = document.getElementById('batchResultsList');
+            const exportBtn = document.getElementById('exportBtn');
+
+            // State
+            let history = JSON.parse(localStorage.getItem('sentimentHistory')) || [];
+            let batchResults = [];
+            let currentFile = null;
+            updateStorageCount();
+
+            // Event Listeners
+            reviewForm.addEventListener('submit', analyzeReview);
+            reviewInput.addEventListener('input', updateWordCount);
+            saveBtn.addEventListener('click', saveToJournal);
+            batchSaveBtn.addEventListener('click', saveBatchToJournal);
+            clearHistory.addEventListener('click', clearAllHistory);
+            singleTab.addEventListener('click', () => switchTab('single'));
+            batchTab.addEventListener('click', () => switchTab('batch'));
+            processBtn.addEventListener('click', processBatch);
+            exportBtn.addEventListener('click', exportResults);
+
+            // File upload handling
+            dropZone.addEventListener('click', () => csvFileInput.click());
+            csvFileInput.addEventListener('change', handleFileSelect);
+            
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, highlight, false);
+            });
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, unhighlight, false);
+            });
+            dropZone.addEventListener('drop', handleDrop, false);
+
+            // Initialize
+            renderHistory();
+            updateWordCount();
+
+            // Functions
+            function switchTab(tab) {
+                if (tab === 'single') {
+                    singleTab.classList.add('text-primary-600', 'border-primary-600');
+                    singleTab.classList.remove('text-gray-500');
+                    batchTab.classList.add('text-gray-500');
+                    batchTab.classList.remove('text-primary-600', 'border-primary-600');
+                    reviewForm.classList.remove('hidden');
+                    batchForm.classList.add('hidden');
+                    resultSection.classList.add('hidden');
+                    batchResultSection.classList.add('hidden');
+                } else {
+                    batchTab.classList.add('text-primary-600', 'border-primary-600');
+                    batchTab.classList.remove('text-gray-500');
+                    singleTab.classList.add('text-gray-500');
+                    singleTab.classList.remove('text-primary-600', 'border-primary-600');
+                    reviewForm.classList.add('hidden');
+                    batchForm.classList.remove('hidden');
+                    resultSection.classList.add('hidden');
+                    batchResultSection.classList.add('hidden');
+                }
+            }
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            function highlight() {
+                dropZone.classList.add('active');
+            }
+
+            function unhighlight() {
+                dropZone.classList.remove('active');
+            }
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files.length) {
+                    handleFiles(files);
+                }
+            }
+
+            function handleFileSelect(e) {
+                const files = e.target.files;
+                if (files.length) {
+                    handleFiles(files);
+                }
+            }
+
+            function handleFiles(files) {
+                const file = files[0];
+                if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+                    showAlert('Please upload a CSV file (.csv format)', 'error');
+                    csvFileInput.value = '';
+                    fileName.classList.add('hidden');
+                    fileName.querySelector('span').textContent = '';
+                    processBtn.disabled = true;
+                    currentFile = null;
+                    return;
+                }
+                currentFile = file;
+                fileName.classList.remove('hidden');
+                fileName.querySelector('span').textContent = file.name;
+                processBtn.disabled = false;
+            }
+
+            function containsArabic(text) {
+                const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+                return arabicRegex.test(text);
+            }
+
+            async function analyzeReview(e) {
+                e.preventDefault();
+                const review = reviewInput.value.trim();
+
+                if (!review) {
+                    showAlert('Please enter a book review to analyze', 'error');
+                    return;
+                }
+
+                // **MODIFIED: Mandatory Arabic check for single review**
+                if (containsArabic(review)) {
+                    showAlert('The model is not trained on Arabic data and cannot process this review.', 'warning');
+                    analyzeBtn.disabled = false; // Re-enable button
+                    analyzeBtn.innerHTML = '<i class="fas fa-magic mr-3"></i>Analyze Sentiment'; // Reset button text
+                    resultSection.classList.add('hidden'); // Hide any previous results
+                    return; 
+                }
+
+                analyzeBtn.disabled = true;
+                analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Analyzing...';
+
+                try {
+                    const formData = new FormData();
+                    formData.append('review', review);
+                    const response = await fetch('/predict', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+
+                    if (response.ok && data.status === 'success') {
+                        const analysis = {
+                            sentiment: data.sentiment,
+                            emoji: data.sentiment === 'Positive' ? '😊' : '😞',
+                            color: data.sentiment === 'Positive' ? 'text-positive-500' : 'text-negative-500',
+                            sentimentScore: data.sentimentScore,
+                            confidence: data.confidence,
+                            phrases: [] 
+                        };
+                        displayResults(analysis);
+                        addToHistory(review, analysis);
+                    } else {
+                         // Display error from backend, including specific Arabic error if it somehow passed frontend
+                        showAlert(data.error || 'Error analyzing review. Please try again.', 'error');
+                         if (data.status === 'error_arabic_not_supported') {
+                            resultSection.classList.add('hidden'); // Hide results section for this specific error
+                        }
+                    }
+                } catch (error) {
+                    console.error('Fetch error:', error);
+                    showAlert('Network error or server issue. Please check your connection or contact support.', 'error');
+                } finally {
+                    if (!containsArabic(review)) { // Only reset if not an Arabic error that already reset it
+                        analyzeBtn.disabled = false;
+                        analyzeBtn.innerHTML = '<i class="fas fa-magic mr-3"></i>Analyze Sentiment';
+                    }
+                }
+            }
+
+            function displayResults(analysis) {
+                sentimentEmoji.textContent = analysis.emoji;
+                sentimentEmoji.className = `text-5xl mr-4 ${analysis.color}`;
+                sentimentText.textContent = `This review is ${analysis.sentiment}`;
+                sentimentText.className = `text-lg font-medium ${analysis.color}`;
+                
+                confidenceBadge.textContent = `${analysis.confidence}% Confidence`;
+                let badgeBgClass = 'bg-yellow-100 text-yellow-800';
+                if (analysis.confidence > 85) {
+                    badgeBgClass = analysis.sentiment === 'Positive' ? 'bg-positive-100 text-positive-800' : 'bg-negative-100 text-negative-800';
+                } else if (analysis.confidence < 70) {
+                     badgeBgClass = 'bg-gray-100 text-gray-800';
+                }
+                confidenceBadge.className = `px-3 py-1 rounded-full text-sm font-medium ${badgeBgClass}`;
+                
+                const pointerPosition = Math.max(0, Math.min(100, (analysis.sentimentScore * 100)));
+                sentimentPointer.style.left = `${pointerPosition}%`;
+                
+                positivePhrases.classList.add('hidden');
+                negativePhrases.classList.add('hidden');
+                positivePhrases.querySelector('div.space-y-2').innerHTML = '';
+                negativePhrases.querySelector('div.space-y-2').innerHTML = '';
+                
+                resultSection.classList.remove('hidden');
+                resultSection.classList.add('fade-in');
+                batchResultSection.classList.add('hidden');
+            }
+
+            async function analyzeReviewTextForBatch(reviewText) {
+                // This function calls the backend, which will perform its own Arabic check.
+                // If Arabic is detected by the backend, it will return an error.
+                try {
+                    const formData = new FormData();
+                    formData.append('review', reviewText);
+                    const response = await fetch('/predict', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+                    if (response.ok && data.status === 'success') {
+                        return {
+                            sentiment: data.sentiment,
+                            sentimentScore: data.sentimentScore,
+                            confidence: data.confidence,
+                            status: 'Processed' // Custom status for batch handling
+                        };
+                    } else {
+                        // If backend detects Arabic, data.status might be 'error_arabic_not_supported'
+                        console.warn(`Batch analysis failed for a review: ${data.error || 'Unknown error'}`);
+                        return { 
+                            sentiment: 'Error', 
+                            sentimentScore: 0.5, // Default for gauge
+                            confidence: 0,
+                            status: data.status === 'error_arabic_not_supported' ? 'Skipped' : 'Error Processing', // Specific status
+                            reason: data.status === 'error_arabic_not_supported' ? 'Arabic text not supported (backend)' : (data.error || 'Model prediction failed')
+                        };
+                    }
+                } catch (error) {
+                    console.error('Batch API call error:', error);
+                    return { sentiment: 'Error', sentimentScore: 0.5, confidence: 0, status: 'Error Processing', reason: 'Network or API call error' };
+                }
+            }
+
+            async function processBatch() {
+                if (!currentFile) {
+                    showAlert('Please select a CSV file first', 'error');
+                    return;
+                }
+
+                batchResults = [];
+                positiveCount.textContent = '0';
+                negativeCount.textContent = '0';
+                skippedCount.textContent = '0';
+                batchResultsList.innerHTML = '';
+
+                batchResultSection.classList.remove('hidden');
+                batchResultSection.classList.add('fade-in');
+                resultSection.classList.add('hidden');
+
+                processBtn.disabled = true;
+                processBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-3"></i>Processing...';
+
+                try {
+                    const fileContent = await readFile(currentFile);
+                    const reviewsData = parseCSV(fileContent);
+
+                    if (!reviewsData || reviewsData.length === 0) {
+                        showAlert('No reviews found or CSV is empty/malformed', 'error');
+                        resetProcessButton(); return;
+                    }
+                    if (!reviewsData[0] || !reviewsData[0].hasOwnProperty('review')) {
+                        showAlert('CSV file must contain a "review" column header', 'error');
+                        resetProcessButton(); return;
+                    }
+
+                    const totalReviews = reviewsData.length;
+                    let processedCount = 0, positiveReviews = 0, negativeReviews = 0, localSkippedReviews = 0;
+
+                    progressText.textContent = `0/${totalReviews}`;
+                    progressBar.style.width = '0%';
+
+                    for (const reviewObj of reviewsData) {
+                        const reviewText = reviewObj.review ? reviewObj.review.trim() : "";
+                        
+                        if (!reviewText) {
+                            localSkippedReviews++;
+                            batchResults.push({ review: reviewText, status: 'Skipped', reason: 'Empty review text', sentiment: null, sentimentScore: null, confidence: null });
+                            addBatchResultItem(reviewText, 'Skipped', 'Empty review text');
+                        // **MODIFIED: Mandatory Arabic check in batch processing**
+                        } else if (containsArabic(reviewText)) {
+                            localSkippedReviews++;
+                            batchResults.push({ review: reviewText, status: 'Skipped', reason: 'Arabic text not supported', sentiment: null, sentimentScore: null, confidence: null });
+                            addBatchResultItem(reviewText, 'Skipped', 'Arabic text not supported');
+                        } else {
+                            const result = await analyzeReviewTextForBatch(reviewText); 
+                            
+                            if (result.status === 'Processed') {
+                                if (result.sentiment === 'Positive') positiveReviews++;
+                                else if (result.sentiment === 'Negative') negativeReviews++;
+                            } else if (result.status === 'Skipped' || result.reason === 'Arabic text not supported (backend)') {
+                                localSkippedReviews++; // Count as skipped if backend confirms Arabic
+                            }
+                            // For other errors, it's counted as processed but with an error sentiment.
+                            
+                            batchResults.push({
+                                review: reviewText,
+                                status: result.status, // Use status from analyzeReviewTextForBatch
+                                reason: result.reason, // Use reason from analyzeReviewTextForBatch
+                                sentiment: result.sentiment,
+                                sentimentScore: result.sentimentScore,
+                                confidence: result.confidence
+                            });
+                            addBatchResultItem(reviewText, result.sentiment, result.reason, result.confidence);
+                        }
+                        
+                        processedCount++;
+                        const progressPercent = Math.round((processedCount / totalReviews) * 100);
+                        progressText.textContent = `${processedCount}/${totalReviews}`;
+                        progressBar.style.width = `${progressPercent}%`;
+                    }
+                    
+                    positiveCount.textContent = positiveReviews;
+                    negativeCount.textContent = negativeReviews;
+                    skippedCount.textContent = localSkippedReviews; // Update with localSkippedReviews
+
+                    batchSummaryText.textContent = `Processed ${processedCount} reviews: ${positiveReviews} positive, ${negativeReviews} negative, ${localSkippedReviews} skipped.`;
+                    showAlert(`Batch processing complete! Processed ${processedCount} reviews.`, 'success');
+
+                } catch (error) {
+                    console.error('Error processing batch:', error);
+                    showAlert('Error processing batch file. Check console for details.', 'error');
+                } finally {
+                    resetProcessButton();
+                }
+            }
+            
+            function resetProcessButton() {
+                processBtn.disabled = false;
+                processBtn.innerHTML = '<i class="fas fa-cogs mr-3"></i>Process Batch';
+            }
+
+            function readFile(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = event => resolve(event.target.result);
+                    reader.onerror = error => reject(error);
+                    reader.readAsText(file);
+                });
+            }
+
+            function parseCSV(csvText) {
+                const lines = csvText.split(/\r\n|\n/);
+                if (lines.length < 1) return [];
+                const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+                const results = [];
+                if (lines.length < 2) return [];
+                for (let i = 1; i < lines.length; i++) {
+                    if (!lines[i].trim()) continue;
+                    const currentLineValues = lines[i].split(','); 
+                    const obj = {};
+                    for (let j = 0; j < headers.length; j++) {
+                        obj[headers[j]] = currentLineValues[j] ? currentLineValues[j].trim().replace(/^"|"$/g, '') : '';
+                    }
+                    results.push(obj);
+                }
+                return results;
+            }
+
+            function addBatchResultItem(review, sentiment, reason, confidence = null) {
+                const item = document.createElement('div');
+                item.className = 'batch-result-item p-3 rounded-lg border border-gray-200 bg-white';
+                const displayReview = review.length > 100 ? review.substring(0, 97) + '...' : review;
+                
+                let sentimentIcon = '', sentimentColorClass = '', sentimentBgClass = '';
+                let itemHighlightClass = '';
+
+                if (sentiment === 'Positive') {
+                    sentimentIcon = 'fa-smile'; sentimentColorClass = 'text-positive-600'; sentimentBgClass = 'bg-positive-100 text-positive-800'; itemHighlightClass = 'highlight-positive';
+                } else if (sentiment === 'Negative') {
+                    sentimentIcon = 'fa-frown'; sentimentColorClass = 'text-negative-600'; sentimentBgClass = 'bg-negative-100 text-negative-800'; itemHighlightClass = 'highlight-negative';
+                } else if (sentiment === 'Skipped' || reason === 'Arabic text not supported' || reason === 'Arabic text not supported (backend)') {
+                    sentimentIcon = 'fa-ban'; sentiment = 'Skipped'; sentimentColorClass = 'text-yellow-600'; sentimentBgClass = 'bg-yellow-100 text-yellow-800'; itemHighlightClass = 'highlight-warning'; reason = reason || 'Arabic text not supported';
+                } else if (sentiment === 'Error' || sentiment === 'Error Processing') {
+                     sentimentIcon = 'fa-exclamation-triangle'; sentimentColorClass = 'text-red-600'; sentimentBgClass = 'bg-red-100 text-red-800'; itemHighlightClass = 'highlight-negative'; // Or a specific error highlight
+                } else { 
+                    sentimentIcon = 'fa-meh'; sentimentColorClass = 'text-gray-600'; sentimentBgClass = 'bg-gray-100 text-gray-800';
+                }
+                if(itemHighlightClass) item.classList.add(itemHighlightClass);
+                
+                item.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <p class="text-sm text-gray-700 mb-1 break-all">"${displayReview}"</p>
+                            ${reason ? `<p class="text-xs ${sentimentColorClass} font-medium"><i class="fas ${sentimentIcon} mr-1"></i>${reason}</p>` : ''}
+                            ${confidence !== null && sentiment !== 'Skipped' && sentiment !== 'Error' && sentiment !== 'Error Processing' ? `<p class="text-xs ${sentimentColorClass}">${confidence}% confidence</p>` : ''}
+                        </div>
+                        <span class="text-xs px-2 py-1 rounded-full font-medium ${sentimentBgClass} ml-2 flex-shrink-0">
+                            <i class="fas ${sentimentIcon} mr-1"></i> ${sentiment}
+                        </span>
+                    </div>
+                `;
+                batchResultsList.prepend(item);
+            }
+
+            function addToHistory(reviewText, analysisResult) {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const dateString = now.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                const snippet = reviewText.length > 80 ? reviewText.substring(0, 77) + '...' : reviewText;
+                
+                history.unshift({
+                    review: snippet, fullReview: reviewText, sentiment: analysisResult.sentiment,
+                    sentimentScore: analysisResult.sentimentScore, confidence: analysisResult.confidence,
+                    time: timeString, date: dateString, color: analysisResult.color
+                });
+                if (history.length > 10) history = history.slice(0, 10);
+                localStorage.setItem('sentimentHistory', JSON.stringify(history));
+                updateStorageCount(); renderHistory();
+            }
+
+            function saveBatchToJournal() {
+                if (batchResults.length === 0) { showAlert('No batch results to save', 'error'); return; }
+                const processedReviewsToSave = batchResults.filter(r => r.status === 'Processed' && (r.sentiment === 'Positive' || r.sentiment === 'Negative'));
+                if (processedReviewsToSave.length === 0) { showAlert('No valid processed reviews to save from this batch', 'warning'); return; }
+                
+                const now = new Date();
+                const timeString = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const dateString = now.toLocaleDateString([], { month: 'short', day: 'numeric' });
+                let countAdded = 0;
+
+                for (const result of processedReviewsToSave.reverse()) {
+                    if (history.length >= 10) break;
+                    const snippet = result.review.length > 80 ? result.review.substring(0, 77) + '...' : result.review;
+                    history.unshift({
+                        review: snippet, fullReview: result.review, sentiment: result.sentiment,
+                        sentimentScore: result.sentimentScore, confidence: result.confidence,
+                        time: timeString, date: dateString,
+                        color: result.sentiment === 'Positive' ? 'text-positive-500' : 'text-negative-500'
+                    });
+                    countAdded++;
+                }
+                if (history.length > 10) history = history.slice(0, 10);
+                localStorage.setItem('sentimentHistory', JSON.stringify(history));
+                updateStorageCount(); renderHistory();
+                showAlert(`Saved ${countAdded} reviews to history. History may be capped at 10 items.`, 'success');
+            }
+
+            function exportResults() {
+                if (batchResults.length === 0) { showAlert('No results to export', 'error'); return; }
+                let csvContent = "Review,Sentiment,Confidence,Status,Reason\n";
+                batchResults.forEach(result => {
+                    const reviewCsv = `"${result.review.replace(/"/g, '""')}"`;
+                    const row = [reviewCsv, result.sentiment || '', result.confidence || '', result.status || '', result.reason || ''].join(',');
+                    csvContent += row + '\n';
+                });
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.setAttribute('href', url); link.setAttribute('download', 'sentiment_analysis_results.csv');
+                link.style.visibility = 'hidden'; document.body.appendChild(link);
+                link.click(); document.body.removeChild(link);
+                showAlert('Exported results to CSV file', 'success');
+            }
+
+            function renderHistory() {
+                if (history.length === 0) { emptyHistory.classList.remove('hidden'); historyList.innerHTML = ''; return; }
+                emptyHistory.classList.add('hidden'); historyList.innerHTML = '';
+                history.forEach((item, index) => {
+                    const historyItem = document.createElement('div');
+                    const itemBgClass = item.sentiment === 'Positive' ? 'bg-positive-50' : (item.sentiment === 'Negative' ? 'bg-negative-50' : 'bg-gray-50');
+                    const itemSentimentIcon = item.sentiment === 'Positive' ? 'fa-smile' : (item.sentiment === 'Negative' ? 'fa-frown' : 'fa-meh');
+                    const itemSentimentBgClass = item.sentiment === 'Positive' ? 'bg-positive-100 text-positive-800' : (item.sentiment === 'Negative' ? 'bg-negative-100 text-negative-800' : 'bg-gray-100 text-gray-800');
+                    historyItem.className = `p-4 rounded-lg border border-gray-200 ${itemBgClass}`;
+                    historyItem.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <p class="text-sm text-gray-700 font-medium break-all">"${item.review}"</p>
+                            <span class="text-xs px-3 py-1 rounded-full font-medium ${itemSentimentBgClass} ml-2 flex-shrink-0">
+                                <i class="fas ${itemSentimentIcon} mr-1"></i> ${item.sentiment}
+                            </span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <p class="text-xs text-gray-400">${item.date}, ${item.time}</p>
+                            <div class="flex space-x-2">
+                                <button onclick="reuseAnalysis(${index})" class="text-xs text-primary-600 hover:text-primary-800" title="Reuse this review"><i class="fas fa-redo-alt"></i></button>
+                                <button onclick="deleteHistoryItem(${index})" class="text-xs text-negative-500 hover:text-negative-700" title="Delete this item"><i class="fas fa-trash-alt"></i></button>
+                            </div>
+                        </div>`;
+                    historyList.appendChild(historyItem);
+                });
+            }
+
+            function updateWordCount() {
+                const text = reviewInput.value.trim();
+                const count = text ? text.split(/\s+/).filter(Boolean).length : 0;
+                wordCount.textContent = `${count} ${count === 1 ? 'word' : 'words'}`;
+            }
+
+            function saveToJournal() { showAlert('Analysis "saved" (placeholder action)', 'success'); }
+
+            function clearAllHistory() {
+                if (history.length === 0) { showAlert('History is already empty.', 'info'); return; }
+                if (confirm('Are you sure you want to clear all analysis history? This cannot be undone.')) {
+                    history = []; localStorage.removeItem('sentimentHistory');
+                    renderHistory(); updateStorageCount();
+                    showAlert('History cleared successfully', 'success');
+                }
+            }
+
+            function updateStorageCount() { storageCount.textContent = history.length; }
+
+            function showAlert(message, type = 'info') {
+                const alertContainer = document.body;
+                const alert = document.createElement('div');
+                let bgColorClass = 'bg-primary-500', iconClass = 'fa-info-circle';
+                if (type === 'success') { bgColorClass = 'bg-positive-500'; iconClass = 'fa-check-circle'; }
+                else if (type === 'error') { bgColorClass = 'bg-negative-500'; iconClass = 'fa-exclamation-triangle'; }
+                else if (type === 'warning') { bgColorClass = 'bg-yellow-500'; iconClass = 'fa-exclamation-circle'; }
+                alert.className = `fixed top-5 right-5 z-50 px-6 py-3 rounded-lg shadow-xl text-white font-medium ${bgColorClass} flex items-center transition-all duration-300 ease-out transform translate-x-full opacity-0`;
+                alert.innerHTML = `<i class="fas ${iconClass} mr-3 text-xl"></i><span>${message}</span>`;
+                alertContainer.appendChild(alert);
+                requestAnimationFrame(() => { alert.classList.remove('translate-x-full', 'opacity-0'); alert.classList.add('translate-x-0', 'opacity-100'); });
+                setTimeout(() => {
+                    alert.classList.remove('translate-x-0', 'opacity-100'); alert.classList.add('translate-x-full', 'opacity-0');
+                    setTimeout(() => alert.remove(), 300);
+                }, 3500);
+            }
+
+            window.reuseAnalysis = function(index) {
+                if (index >= 0 && index < history.length) {
+                    const item = history[index]; reviewInput.value = item.fullReview; updateWordCount();
+                    if (!singleTab.classList.contains('border-primary-600')) switchTab('single');
+                    reviewInput.focus();
+                    showAlert(`Review loaded from history: "${item.review}"`, 'info');
+                }
+            };
+            window.deleteHistoryItem = function(index) {
+                if (index >= 0 && index < history.length) {
+                    const itemToDelete = history[index]; history.splice(index, 1);
+                    localStorage.setItem('sentimentHistory', JSON.stringify(history));
+                    renderHistory(); updateStorageCount();
+                    showAlert(`Analysis for "${itemToDelete.review}" deleted.`, 'success');
+                }
+            };
+        });
+
+        function useExample(type) {
+            const positiveExample = `This novel was absolutely breathtaking! The character development was superb, and the plot twists kept me on the edge of my seat. The author's writing style is engaging and vivid, making it impossible to put the book down. I highly recommend this to anyone who enjoys a compelling story with deep emotional resonance.`;
+            const negativeExample = `I was extremely disappointed with this book. The characters were flat and uninteresting, and the plot was predictable from the very beginning. The writing felt lazy and uninspired. I struggled to finish it and wouldn't recommend it to anyone. Save your money and time for something better written and more engaging.`;
+            const reviewInput = document.getElementById('review');
+            const wordCountEl = document.getElementById('wordCount');
+            const singleTab = document.getElementById('singleTab');
+            if (singleTab && !singleTab.classList.contains('border-primary-600')) document.getElementById('singleTab').click();
+            reviewInput.value = type === 'positive' ? positiveExample : negativeExample;
+            const text = reviewInput.value.trim();
+            const count = text ? text.split(/\s+/).filter(Boolean).length : 0;
+            wordCountEl.textContent = `${count} ${count === 1 ? 'word' : 'words'}`;
+            reviewInput.focus();
+            const alert = document.createElement('div');
+            alert.className = 'fixed top-5 right-5 z-50 px-6 py-3 rounded-lg shadow-xl bg-primary-500 text-white font-medium flex items-center';
+            alert.innerHTML = `<i class="fas fa-lightbulb mr-3 text-xl"></i><span>${type === 'positive' ? 'Positive' : 'Negative'} example loaded into textarea.</span>`;
+            document.body.appendChild(alert);
+            setTimeout(() => alert.remove(), 3000);
+        }
+    </script>
+</body>
+</html>
