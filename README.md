@@ -123,18 +123,6 @@ These metrics suggest the model is capable of classifying sentiment with decent 
 *   **Dockerization:** Create a Dockerfile to containerize the Flask application for easier deployment.
 *   **API Documentation:** Provide clear API documentation for the `/predict` endpoint if it's intended for programmatic use.
 
-## Contributing
-
-Contributions are welcome! If you have suggestions for improvements, bug fixes, or want to add new features, please follow the standard GitHub workflow:
-
-1.  Fork the repository.
-2.  Create a new branch (`git checkout -b feature/your-feature-name`).
-3.  Make your changes.
-4.  Commit your changes (`git commit -am 'Add some feature'`).
-5.  Push to the branch (`git push origin feature/your-feature-name`).
-6.  Create a new Pull Request.
-
-Please ensure your code adheres to good practices, includes relevant documentation or comments, and passes any tests (if applicable).
 
 ## License
 
